@@ -3,6 +3,7 @@ var NotBeforeError    = require('./lib/NotBeforeError');
 var TokenExpiredError = require('./lib/TokenExpiredError');
 var decode            = require('./decode');
 var timespan          = require('./lib/timespan');
+var validateAsymmetricKey = require('./lib/validateAsymmetricKey');
 var PS_SUPPORTED      = require('./lib/psSupported');
 var jws               = require('jws');
 
@@ -45,6 +46,10 @@ module.exports = function (jwtString, secretOrPublicKey, options, callback) {
 
   if (options.nonce !== undefined && (typeof options.nonce !== 'string' || options.nonce.trim() === '')) {
     return done(new JsonWebTokenError('nonce must be a non-empty string'));
+  }
+
+  if (options.allowInvalidAsymmetricKeyTypes !== undefined && typeof options.allowInvalidAsymmetricKeyTypes !== 'boolean') {
+    return done(new JsonWebTokenError('allowInvalidAsymmetricKeyTypes must be a boolean'));
   }
 
   var clockTimestamp = options.clockTimestamp || Math.floor(Date.now() / 1000);
@@ -119,6 +124,14 @@ module.exports = function (jwtString, secretOrPublicKey, options, callback) {
 
     if (!~options.algorithms.indexOf(decodedToken.header.alg)) {
       return done(new JsonWebTokenError('invalid algorithm'));
+    }
+
+    if (!options.allowInvalidAsymmetricKeyTypes) {
+      try {
+        validateAsymmetricKey(header.alg, secretOrPublicKey);
+      } catch (e) {
+        return done(e);
+      }
     }
 
     var valid;

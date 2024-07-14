@@ -1,5 +1,6 @@
 var timespan = require('./lib/timespan');
 var PS_SUPPORTED = require('./lib/psSupported');
+var validateAsymmetricKey = require('./lib/validateAsymmetricKey');
 var jws = require('jws');
 var includes = require('lodash.includes');
 var isBoolean = require('lodash.isboolean');
@@ -26,7 +27,8 @@ var sign_options_schema = {
   jwtid: { isValid: isString, message: '"jwtid" must be a string' },
   noTimestamp: { isValid: isBoolean, message: '"noTimestamp" must be a boolean' },
   keyid: { isValid: isString, message: '"keyid" must be a string' },
-  mutatePayload: { isValid: isBoolean, message: '"mutatePayload" must be a boolean' }
+  mutatePayload: { isValid: isBoolean, message: '"mutatePayload" must be a boolean' },
+  allowInvalidAsymmetricKeyTypes: { isValid: isBoolean, message: '"allowInvalidAsymmetricKeyTypes" must be a boolean'}
 };
 
 var registered_claims_schema = {
@@ -142,6 +144,14 @@ module.exports = function (payload, secretOrPrivateKey, options, callback) {
   }
   catch (error) {
     return failure(error);
+  }
+
+  if (!options.allowInvalidAsymmetricKeyTypes) {
+    try {
+      validateAsymmetricKey(header.alg, secretOrPrivateKey);
+    } catch (error) {
+      return failure(error);
+    }
   }
 
   var timestamp = payload.iat || Math.floor(Date.now() / 1000);
